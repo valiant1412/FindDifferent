@@ -31,24 +31,56 @@ namespace FindDiff.Gameplay
         }
 
         /// <summary>
+        /// CHIỀU XUÔI: toạ độ chuẩn hoá (0..1) -> toạ độ local trong Content (gốc (0,0) ở GIỮA ảnh).
+        /// Dùng để đặt một vật (chấm, vòng tròn) lên đúng chỗ trên ảnh.
+        /// </summary>
+        public Vector2 NormalizedToLocalPoint(Vector2 normalizedPoint)
+        {
+            Rect rect = content.rect;                 // rect.min = góc dưới-trái, rect.size = (rộng, cao)
+            return rect.min + normalizedPoint * rect.size;
+        }
+
+        /// <summary>
+        /// CHIỀU NGƯỢC: vị trí chạm trên màn hình -> toạ độ chuẩn hoá (0..1) trên ảnh.
+        /// Trả về false nếu chạm ra ngoài khung hoặc ra ngoài phần ảnh.
+        /// </summary>
+        public bool TryGetNormalizedPoint(Vector2 screenPosition, out Vector2 normalizedPoint)
+        {
+            normalizedPoint = Vector2.zero;
+
+            // 1) Chạm có nằm trong khung (Viewport) không? Canvas là Overlay nên camera = null.
+            if (!RectTransformUtility.RectangleContainsScreenPoint(viewport, screenPosition, null))
+            {
+                return false;
+            }
+
+            // 2) Đổi toạ độ màn hình (pixel) -> toạ độ local của Content (gốc ở giữa ảnh).
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(content, screenPosition, null, out Vector2 localPoint);
+
+            // 3) Đổi local -> chuẩn hoá (0..1).
+            Rect rect = content.rect;
+
+
+            normalizedPoint = (localPoint - rect.min) / rect.size;
+
+            // 4) Chạm trong khung nhưng ngoài phần ảnh (vùng dư) -> không tính.
+            bool insideImage = normalizedPoint.x >= 0f && normalizedPoint.x <= 1f
+                            && normalizedPoint.y >= 0f && normalizedPoint.y <= 1f;
+            return insideImage;
+        }
+
+        /// <summary>
         /// Đổi kích thước Content sao cho ảnh nằm GỌN trong Viewport mà KHÔNG bị méo.
         /// </summary>
         private void FitContentToViewport(Sprite sprite)
         {
-            Vector2 viewportSize = viewport.rect.size;   // kích thước khung, ví dụ (1040, 800)
-            Vector2 spriteSize = sprite.rect.size;       // kích thước ảnh gốc, ví dụ (1024, 768)
+            Vector2 viewportSize = viewport.rect.size;
+            Vector2 spriteSize = sprite.rect.size;
 
-            // TODO BÀI TẬP 1.1 – Tính fittedSize để ảnh vừa khung mà không bị méo.
-            // Gợi ý:
-            //   - Có 2 cách phóng ảnh: theo chiều rộng (viewportSize.x / spriteSize.x)
-            //     hoặc theo chiều cao (viewportSize.y / spriteSize.y).
             var ratioX = viewportSize.x / spriteSize.x;
             var ratioY = viewportSize.y / spriteSize.y;
-            var ratio = Math.Min(ratioX, ratioY);
-            //   - Muốn ảnh KHÔNG tràn ra ngoài khung thì chọn tỉ lệ nào? (Mathf.Min hay Mathf.Max?)
-            //   - Nhân CẢ HAI chiều của spriteSize với cùng một tỉ lệ thì ảnh sẽ không méo.
-            // Làm xong thì xoá dòng Debug.LogWarning bên dưới.
-            Vector2 fittedSize = spriteSize * ratio; // TẠM THỜI: kéo giãn ảnh cho đầy khung -> ảnh bị méo
+            var ratio = Mathf.Min(ratioX, ratioY);
+            Vector2 fittedSize = spriteSize * ratio;
             content.sizeDelta = fittedSize;
         }
     }
