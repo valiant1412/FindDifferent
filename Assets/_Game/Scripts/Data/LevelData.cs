@@ -16,5 +16,12 @@ namespace FindDiff.Data
 
         [Tooltip("Các điểm khác biệt, đơn vị PIXEL của ảnh gốc, gốc (0,0) ở góc trên-trái.")]
         public List<DifferenceSpot> spots = new List<DifferenceSpot>();
+
+        [Header("Luật chơi")]
+        [Tooltip("Thời gian chơi, tính bằng giây.")]
+        public float timeLimit = 90f;
+
+        [Tooltip("Số lần được chọn sai. Sai đến lần này là thua.")]
+        public int maxMistakes = 3;
     }
 }

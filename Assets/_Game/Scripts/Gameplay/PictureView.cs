@@ -77,7 +77,7 @@ namespace FindDiff.Gameplay
         /// Tạo một bản sao của markerPrefab (vòng tròn) và đặt lên ảnh.
         /// pixelCenter, pixelDiameter: đơn vị pixel ảnh gốc.
         /// </summary>
-        public void AddMarker(RectTransform markerPrefab, Vector2 pixelCenter, float pixelDiameter)
+        public RectTransform AddMarker(RectTransform markerPrefab, Vector2 pixelCenter, float pixelDiameter)
         {
             // Tạo bản sao làm CON của Content -> khi Content di chuyển/zoom, vòng tròn đi theo.
             RectTransform marker = Instantiate(markerPrefab, content);
@@ -88,6 +88,7 @@ namespace FindDiff.Gameplay
             float unitsPerImagePixel = content.rect.width / imagePixelSize.x;
             float size = pixelDiameter * unitsPerImagePixel;
             marker.sizeDelta = new Vector2(size, size);
+            return marker;   // trả bản sao ra ngoài, để nơi gọi có thể làm tiếp (ví dụ: xoá sau 0.6 giây)
         }
 
         /// <summary>

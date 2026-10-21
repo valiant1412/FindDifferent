@@ -9,7 +9,9 @@ namespace FindDiff.Gameplay
     ///   - Lúc bắt đầu: đưa 2 ảnh từ LevelData lên 2 PictureView.
     ///   - Mỗi lần có tap: đổi sang PIXEL ảnh gốc, kiểm tra có trúng điểm khác biệt chưa tìm không.
     ///   - Trúng: đánh dấu đã tìm + khoanh tròn trên CẢ HAI ảnh.
-    /// Buổi 4 sẽ thêm: lượt chọn sai, đồng hồ, thắng/thua.
+    ///   - Trượt: hiện dấu X, trừ 1 lượt sai.
+    ///   - Đồng hồ đếm ngược mỗi frame.
+    ///   - Tìm đủ -> THẮNG. Hết lượt sai hoặc hết giờ -> THUA.
     /// </summary>
     public class LevelController : MonoBehaviour
     {
@@ -20,11 +22,17 @@ namespace FindDiff.Gameplay
         [SerializeField] private TapDetector tapDetector;
         [SerializeField] private PictureView pictureA;
         [SerializeField] private PictureView pictureB;
+        [SerializeField] private LevelHud hud;
 
         [Header("Hiển thị")]
         [SerializeField] private RectTransform foundMarkerPrefab;
         [Tooltip("Vẽ vòng tròn to hơn điểm khác biệt một chút cho dễ nhìn.")]
         [SerializeField] private float markerScale = 1.3f;
+        [SerializeField] private RectTransform wrongMarkerPrefab;
+        [Tooltip("Kích thước dấu X, pixel ảnh gốc.")]
+        [SerializeField] private float wrongMarkerSize = 80f;
+        [Tooltip("Dấu X tự biến mất sau số giây này.")]
+        [SerializeField] private float wrongMarkerLifetime = 0.6f;
 
         [Header("Cảm giác chạm")]
         [Tooltip("Nới rộng vùng trúng cho ngón tay, đơn vị pixel ảnh gốc.")]
@@ -33,6 +41,9 @@ namespace FindDiff.Gameplay
         // ----- Trạng thái lúc chơi (KHÔNG lưu vào LevelData) -----
         private bool[] isFound;   // isFound[i] == true nghĩa là điểm thứ i đã được tìm thấy
         private int foundCount;
+        private LevelState state;
+        private float timeLeft;   // giây còn lại
+        private int mistakesLeft; // lượt sai còn lại
 
         private void OnEnable()
         {
@@ -51,34 +62,81 @@ namespace FindDiff.Gameplay
 
             isFound = new bool[level.spots.Count];   // mảng mới: tất cả đều false
             foundCount = 0;
+            state = LevelState.Playing;
+            timeLeft = level.timeLimit;
+            mistakesLeft = level.maxMistakes;
+
+            hud.SetTime(timeLeft);
+            hud.SetMistakes(mistakesLeft);
+            hud.SetFound(foundCount, level.spots.Count);
+
+            Debug.LogWarning("Chưa làm TODO BÀI TẬP 4.1 (LevelController.Update) – xoá dòng này khi xong", this);
+        }
+
+        private void Update()
+        {
+            // TODO BÀI TẬP 4.1 – Đồng hồ đếm ngược.
+            //   - Chỉ chạy khi đang chơi (state là Playing). Không phải Playing thì return ngay.
+            if (state != LevelState.Playing) return;
+            //   - Trừ timeLeft đi thời gian của frame này. Gợi ý: Time.deltaTime = số giây từ frame trước tới giờ
+            //     (60 FPS thì khoảng 0.016).
+            timeLeft -= Time.deltaTime;
+            timeLeft = Mathf.Max(timeLeft, 0f);
+            //   - Không để timeLeft âm: dùng Mathf.Max(timeLeft, 0f).
+            //   - Báo cho HUD: hud.SetTime(timeLeft);
+            hud.SetTime(timeLeft);
+            Debug.Log($"Thời gian thật đã trôi: {Time.timeSinceLevelLoad:F1}s | Đồng hồ game đã trừ: {level.timeLimit - timeLeft:F1}s");
+            if (timeLeft == 0)
+            {
+                EndLevel(LevelState.Lost, "Time's up");
+            }
+            //   - Nếu timeLeft đã về 0 -> EndLevel(LevelState.Lost, "TIME'S UP");
         }
 
         private void HandleTap(Vector2 screenPosition)
         {
             if (pictureA.TryGetImagePixel(screenPosition, out Vector2 pixelOnA))
             {
-                CheckTap(pixelOnA);
+                CheckTap(pictureA, pixelOnA);
             }
             else if (pictureB.TryGetImagePixel(screenPosition, out Vector2 pixelOnB))
             {
-                CheckTap(pixelOnB);
+                CheckTap(pictureB, pixelOnB);
             }
             // Chạm ra ngoài cả 2 ảnh -> bỏ qua, không tính là sai.
         }
 
-        private void CheckTap(Vector2 pixelPoint)
+        private void CheckTap(PictureView tappedPicture, Vector2 pixelPoint)
         {
+            // Màn đã kết thúc (thắng hoặc thua) -> không nhận chạm nữa.
+            if (state != LevelState.Playing)
+            {
+                return;
+            }
+
             // In toạ độ pixel ảnh gốc ra Console: vừa để debug, vừa để lấy toạ độ khi tạo level mới.
             Debug.Log($"Tap tại pixel {pixelPoint.ToString("F0")}");
 
             int spotIndex = FindSpotAt(pixelPoint);
             if (spotIndex < 0)
             {
-                Debug.Log("SAI – không trúng điểm khác biệt nào. (Buổi 4 sẽ trừ lượt sai)");
+                RegisterMistake(tappedPicture, pixelPoint);
                 return;
             }
 
             MarkFound(spotIndex);
+        }
+
+        private void RegisterMistake(PictureView tappedPicture, Vector2 pixelPoint)
+        {
+            // Hiện dấu X đúng chỗ chạm, trên ảnh vừa chạm, rồi tự huỷ sau wrongMarkerLifetime giây.
+            RectTransform wrongMarker = tappedPicture.AddMarker(wrongMarkerPrefab, pixelPoint, wrongMarkerSize);
+            Destroy(wrongMarker.gameObject, wrongMarkerLifetime);
+
+            mistakesLeft -= 1;
+            hud.SetMistakes(mistakesLeft);
+            if (mistakesLeft == 0) EndLevel(LevelState.Lost, "Lose");
+
         }
 
         /// <summary>
@@ -109,12 +167,21 @@ namespace FindDiff.Gameplay
             pictureA.AddMarker(foundMarkerPrefab, spot.center, diameter);
             pictureB.AddMarker(foundMarkerPrefab, spot.center, diameter);
 
+            hud.SetFound(foundCount, level.spots.Count);
             Debug.Log($"ĐÚNG! Tìm thấy điểm #{spotIndex}  ({foundCount}/{level.spots.Count})");
 
             if (foundCount == level.spots.Count)
             {
-                Debug.Log("THẮNG! Đã tìm hết các điểm khác biệt. (Buổi 4 sẽ hiện bảng thắng)");
+                EndLevel(LevelState.Won, "YOU WIN!");
             }
+        }
+
+        /// <summary>Kết thúc màn: đổi trạng thái (dừng đồng hồ, khoá chạm) và báo kết quả lên HUD.</summary>
+        private void EndLevel(LevelState result, string message)
+        {
+            state = result;
+            hud.ShowResult(message);
+            Debug.Log($"Kết thúc màn: {result}");
         }
     }
 }
