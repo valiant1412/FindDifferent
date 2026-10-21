@@ -27,3 +27,12 @@ Thumbs.db
 *.aab
 *.unitypackage
 *.app
+
+# Third-party Asset Store packages (license forbids public redistribution).
+# Re-import them from the Asset Store / Package Manager after cloning.
+/Assets/Colorful_UI/
+/Assets/Colorful_UI.meta
+/Assets/Lana Studio/
+/Assets/Lana Studio.meta
+/Assets/_Heathen Engineering/
+/Assets/_Heathen Engineering.meta

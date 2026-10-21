@@ -38,6 +38,11 @@ namespace FindDiff.Gameplay
         [Tooltip("Nới rộng vùng trúng cho ngón tay, đơn vị pixel ảnh gốc.")]
         [SerializeField] private float touchTolerance = 30f;
 
+        [Header("Pop UP")]
+        [SerializeField] private GameObject WinUI;
+
+        [SerializeField] private GameObject LoseUI;
+
         // ----- Trạng thái lúc chơi (KHÔNG lưu vào LevelData) -----
         private bool[] isFound;   // isFound[i] == true nghĩa là điểm thứ i đã được tìm thấy
         private int foundCount;
@@ -182,6 +187,20 @@ namespace FindDiff.Gameplay
             state = result;
             hud.ShowResult(message);
             Debug.Log($"Kết thúc màn: {result}");
+
+            if (result == LevelState.Won)
+            {
+                float timeUsed = level.timeLimit - timeLeft;          // 90 - 42.3 = 47.7 giây
+                int mistakesMade = level.maxMistakes - mistakesLeft;  // 3 - 2 = sai 1 lần
+                int stars = StarRating.Calculate(level, timeUsed, mistakesMade);
+                Debug.Log($"Thời gian: {timeUsed:F1}s | Sai: {mistakesMade} lần | Sao: {stars}/{StarRating.MaxStars}");
+                // Buổi 5 (bạn tự làm): truyền timeUsed, mistakesMade, stars sang popup để hiển thị.
+                WinUI.SetActive(true);
+            }
+            else
+            {
+                LoseUI.SetActive(true);
+            }
         }
     }
 }

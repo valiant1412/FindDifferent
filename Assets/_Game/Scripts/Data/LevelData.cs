@@ -23,5 +23,12 @@ namespace FindDiff.Data
 
         [Tooltip("Số lần được chọn sai. Sai đến lần này là thua.")]
         public int maxMistakes = 3;
+
+        [Header("Tính sao (bắt đầu 3 sao, tối thiểu 1 sao)")]
+        [Tooltip("Hoàn thành trong số giây này (hoặc nhanh hơn) thì KHÔNG bị trừ sao vì thời gian.")]
+        public float starTimeLimit = 45f;
+
+        [Tooltip("Chọn sai NHIỀU HƠN số lần này thì bị trừ 1 sao. 0 = chỉ cần sai 1 lần là bị trừ.")]
+        public int starMaxMistakes = 0;
     }
 }
